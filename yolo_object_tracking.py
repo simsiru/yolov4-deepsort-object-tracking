@@ -135,7 +135,7 @@ def yolo_object_tracking_with_apps():
 
 
     #FR setup
-    do_face_rec = True
+    do_face_rec = False
     do_face_rec_with_depth_map = False
 
     if do_face_rec_with_depth_map:
