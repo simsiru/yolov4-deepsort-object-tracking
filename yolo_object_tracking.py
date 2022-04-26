@@ -1,7 +1,7 @@
 import tensorflow as tf
 import cv2
 import numpy as np
-from yolo_object_detection import ObjectDetection
+from opencv_object_detector import ObjectDetection
 import time
 from collections import Counter
 from utils import draw_bbox, draw_bbox_tracking, draw_bbox_face_rec, EasyocrNumberPlateRecognition

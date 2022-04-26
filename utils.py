@@ -8,7 +8,7 @@ import torch
 import psycopg2 as pg
 import pandas as pd
 
-from yolo_object_detection import ObjectDetection
+from opencv_object_detector import ObjectDetection
 from facenet_pytorch import MTCNN, InceptionResnetV1
 #easyocr_reader = easyocr.Reader(['en'], gpu=True) # this needs to run only once to load the model into memory
 
