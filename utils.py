@@ -5,6 +5,9 @@ import easyocr
 import os
 from depth_sensor import D435i
 import torch
+import psycopg2 as pg
+import pandas as pd
+
 from yolo_object_detection import ObjectDetection
 from facenet_pytorch import MTCNN, InceptionResnetV1
 #easyocr_reader = easyocr.Reader(['en'], gpu=True) # this needs to run only once to load the model into memory
@@ -445,3 +448,48 @@ def view_face_embeddings(face_embeddings_path):
     else:
         print("Files not found")
         return
+
+
+class DBInterface():
+    def __init__(self, password, username='postgres', hostname='localhost', database='face_recognition', port_id=5432):
+        self.host = hostname
+        self.dbname = database
+        self.username = username
+        self.password = password
+        self.port = port_id
+        
+
+    def execute_sql_script(self, sql_script, return_result = False):
+        conn = None
+        cur = None
+        df = None
+
+        try:
+            with pg.connect(
+                host = self.host,
+                dbname = self.dbname,
+                user = self.username,
+                password = self.password,
+                port = self.port) as conn:
+
+                if return_result:
+                    df = pd.read_sql_query(sql_script, conn)
+                else:
+                    with conn.cursor(cursor_factory=pg.extras.DictCursor) as cur:
+                        cur.execute(sql_script)
+
+                        #if len(cur.fetchall()) > 0:
+                        #    df = cur.fetchall()
+                
+                    #conn.commit()
+        except Exception as error:
+            print(error)
+        finally:
+            #if cur is not None:
+            #    cur.close()
+            if conn is not None:
+                conn.close()
+
+        if return_result:
+            return df
+        

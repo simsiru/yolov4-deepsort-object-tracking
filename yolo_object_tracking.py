@@ -109,7 +109,7 @@ def yolo_object_tracking_with_apps():
     #Camera stream setup
     else:
         #cap = cv2.VideoCapture(0)
-        cap = cv2.VideoCapture("test_videos/traffic6.mp4")
+        cap = cv2.VideoCapture("test_videos/traffic1.mp4")
         #cap = cv2.VideoCapture("test_videos/people1.mp4")
 
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
