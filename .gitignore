@@ -1,6 +1,9 @@
 test_videos/
 test_images/
 __pycache__/
+face_embeddings_data/
+face_img_data/
+jetson_nano_files/
 yolo_opencv_test.py
 D435i_test_OpenCV.py
 tfod_object_tracking.py
