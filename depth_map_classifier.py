@@ -4,16 +4,52 @@ from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
 from torch.utils.data import Dataset
 import torch.nn.functional as F
+from utils import DBInterface
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class DepthMapsDataset(Dataset):
-    def __init__(self, depth_maps, embeddings_labels_dir, transforms=None, target_transforms=None):
+    def __init__(self, depth_maps=None, embeddings_labels_dir=None, transforms=None, target_transforms=None):
         super(DepthMapsDataset, self).__init__()
 
-        self.depth_maps = torch.load(depth_maps)
-        self.embeddings_labels = torch.load(embeddings_labels_dir)
+        db_interface = DBInterface(username='postgres', hostname='localhost',
+        database='face_recognition', port_id=5432)
+
+        self.idx_to_name_map = []
+        self.num_samples_per_cls = None
+
+        if depth_maps is not None or embeddings_labels_dir is not None:
+            self.depth_maps = torch.load(depth_maps)
+            self.embeddings_labels = torch.load(embeddings_labels_dir)
+        else:
+            sql_script = """
+            SELECT person_name, face_depth_map
+            FROM face_embeddings_and_depth_maps
+            """
+            df = db_interface.execute_sql_script(sql_script, return_result = True)
+            first_arr = True
+            for i, arr in enumerate(df['face_depth_map']):
+                np_arr = db_interface.bytes_to_numpy_array(arr)
+                if first_arr:
+                    self.depth_maps = torch.tensor(np_arr)
+
+                    self.embeddings_labels = torch.tensor([i])
+                    self.num_samples_per_cls = self.depth_maps.shape[0]
+                    for j in range(1, self.num_samples_per_cls):
+                        self.embeddings_labels = torch.cat((self.embeddings_labels, torch.tensor([i])), 0)
+
+                    first_arr = False
+                else:
+                    self.depth_maps = torch.cat((self.depth_maps, torch.tensor(np_arr)), 0)
+
+                    for j in range(self.num_samples_per_cls):
+                        self.embeddings_labels = torch.cat((self.embeddings_labels, torch.tensor([i])), 0)
+
+                self.idx_to_name_map.append(df['person_name'][i])
+
+
+
         self.transforms = transforms
         self.target_transforms = target_transforms
 

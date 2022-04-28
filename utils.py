@@ -1,3 +1,4 @@
+import io
 import cv2
 import numpy as np
 import re
@@ -450,16 +451,18 @@ def view_face_embeddings(face_embeddings_path):
         return
 
 
+
+
+
 class DBInterface():
-    def __init__(self, password, username='postgres', hostname='localhost', database='face_recognition', port_id=5432):
+    def __init__(self, password='', username='postgres', hostname='localhost', database='face_recognition', port_id=5432):
         self.host = hostname
         self.dbname = database
         self.username = username
         self.password = password
         self.port = port_id
-        
 
-    def execute_sql_script(self, sql_script, return_result = False):
+    def execute_sql_script(self, sql_script, values_insert = None, return_result = False):
         conn = None
         cur = None
         df = None
@@ -475,8 +478,11 @@ class DBInterface():
                 if return_result:
                     df = pd.read_sql_query(sql_script, conn)
                 else:
-                    with conn.cursor(cursor_factory=pg.extras.DictCursor) as cur:
-                        cur.execute(sql_script)
+                    with conn.cursor() as cur:#(cursor_factory=pg.extras.DictCursor) as cur:
+                        if values_insert is not None:
+                            cur.execute(sql_script, values_insert)
+                        else:
+                            cur.execute(sql_script)
 
                         #if len(cur.fetchall()) > 0:
                         #    df = cur.fetchall()
@@ -493,3 +499,147 @@ class DBInterface():
         if return_result:
             return df
         
+    def numpy_array_to_bytes(self, arr):
+        out = io.BytesIO()
+        np.save(out, arr)
+        out.seek(0)
+        return out.read()
+
+    def bytes_to_numpy_array(self, text):
+        out = io.BytesIO(text)
+        out.seek(0)
+        return np.load(out)
+
+
+
+def insert_delete_update_person_face_data_in_database(n_img_class = 10, save_face_img = False, face_img_path = "faces"):
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    emb_model = InceptionResnetV1(pretrained='vggface2').eval().to(device)
+    mtcnn = MTCNN(device=device)
+
+    fdet_model = ObjectDetection("yolo_models/yolov4-tiny_f_.weights", "yolo_models/yolov4-tiny_1_cl.cfg", nms_thr=0.4, conf_thr=0.5, img_size=416)
+
+    sensor = D435i(convert_to_color_map = True, width = 640, height = 480, enable_depth = True, enable_rgb = True, enable_infrared = False)
+
+    curr_img_n = 0
+
+    person_name = ""
+
+    name_saving_mode = True
+    emb_saving_mode = False
+
+    dm_xmin, dm_ymin, dm_xmax, dm_ymax = 180, 80, 460, 400
+
+    db_interface = DBInterface(username='postgres', hostname='localhost', database='face_recognition', port_id=5432)
+
+    while True:
+        avbl, depth, rgb, raw_depth, infrared = sensor.get_frame()
+        if not avbl:
+            sensor.release()
+            break
+
+
+        depth_with_bboxes = depth.copy()
+        rgb_with_bboxes = rgb.copy()
+        _, _, bboxes = fdet_model.detect(rgb)
+        for box in bboxes:
+            (x, y, w, h) = box
+            xmin, ymin, xmax, ymax = x, y, x + w, y + h
+
+            #cv2.rectangle(depth_with_bboxes, (xmin, ymax), (xmax, ymin), (255,255,255), 2)
+            cv2.rectangle(rgb_with_bboxes, (xmin, ymax), (xmax, ymin), (255,255,255), 2)
+
+        face_depth_map = raw_depth[dm_ymin:dm_ymax, dm_xmin:dm_xmax]
+
+        cv2.rectangle(depth_with_bboxes, (dm_xmin, dm_ymax), (dm_xmax, dm_ymin), (255,255,255), 2)
+
+        frame_with_bboxes = np.hstack((depth_with_bboxes, rgb_with_bboxes))
+
+        cv2.imshow('Depth and rgb camera streams', frame_with_bboxes)
+
+        rgb = cv2.cvtColor(rgb, cv2.COLOR_BGR2RGB)
+
+
+        if cv2.waitKey(25) & 0xFF == ord("q"):
+            sensor.release()
+            cv2.destroyAllWindows()
+            break
+
+
+        if cv2.waitKey(25) & 0xFF == ord("a") and name_saving_mode:
+            person_name = input("Enter next person's name: ")
+            print(f"Currently collecting {person_name} data")
+            curr_img_n = 0
+            
+            name_saving_mode = False
+            emb_saving_mode = True
+            
+
+        if cv2.waitKey(25) & 0xFF == ord("s") and emb_saving_mode and curr_img_n <= n_img_class - 1:
+            if save_face_img:
+                img_path = face_img_path + "/" + person_name + "/" + str(curr_img_n) + ".jpg"
+                if os.path.exists(face_img_path + "/" + person_name + "/"):
+                    face = mtcnn(rgb, save_path=img_path)
+                else:
+                    os.mkdir(face_img_path + "/" + person_name + "/")
+                    face = mtcnn(rgb, save_path=img_path)
+            else:
+                face = mtcnn(rgb)
+
+            if face is None:
+                continue
+
+            embeddings = emb_model(face.unsqueeze(0).to(device)).detach().cpu()
+
+
+            if curr_img_n == 0:
+                face_embeddings = embeddings
+
+                face_depth_maps = torch.tensor(face_depth_map.astype('int16')).unsqueeze(0)
+
+            else:
+                face_embeddings = torch.cat((face_embeddings, embeddings), 0)
+
+                face_depth_maps = torch.cat((face_depth_maps, torch.tensor(face_depth_map.astype('int16')).unsqueeze(0)), 0)
+
+
+            #face_embeddings = embeddings.squeeze(0).numpy()
+            #face_depth_maps = torch.tensor(face_depth_map.astype('int16')).numpy()
+
+            if curr_img_n == n_img_class - 1:
+                face_embeddings = face_embeddings.numpy()
+                face_depth_maps = face_depth_maps.numpy()
+
+                sql_script = """
+                INSERT INTO face_embeddings_and_depth_maps(person_name, face_embedding, face_depth_map)
+                VALUES (%s, %s, %s)
+                """
+                db_interface.execute_sql_script(sql_script,
+                (person_name, db_interface.numpy_array_to_bytes(face_embeddings), db_interface.numpy_array_to_bytes(face_depth_maps)))
+
+
+                name_saving_mode = True
+                emb_saving_mode = False
+
+            curr_img_n += 1
+
+            print(f"Embedding {curr_img_n} saved")
+
+
+        if cv2.waitKey(25) & 0xFF == ord("d") and name_saving_mode:
+            delete_person_name = input("Enter a person's name to delete: ")
+
+            sql_script = """
+            DELETE FROM face_embeddings_and_depth_maps
+            WHERE person_name = %s
+            """
+            db_interface.execute_sql_script(sql_script, (delete_person_name,))
+
+            print(f"{delete_person_name} data deleted")
+            
+
+    sql_script = """
+    SELECT *
+    FROM face_embeddings_and_depth_maps
+    """
+    print(db_interface.execute_sql_script(sql_script, return_result = True))
