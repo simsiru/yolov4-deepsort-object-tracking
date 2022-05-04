@@ -5,6 +5,7 @@ import torchvision.transforms as transforms
 from torch.utils.data import Dataset
 import torch.nn.functional as F
 from utils import DBInterface
+import numpy as np
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -48,7 +49,7 @@ class DepthMapsDataset(Dataset):
 
                 self.idx_to_name_map.append(df['person_name'][i])
 
-
+        np.save("face_embeddings_data/name_to_class_idx_map.npy", self.idx_to_name_map)
 
         self.transforms = transforms
         self.target_transforms = target_transforms

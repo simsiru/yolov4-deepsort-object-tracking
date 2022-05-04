@@ -14,8 +14,6 @@ from deep_sort.detection import Detection
 from deep_sort.tracker import Tracker
 from deep_sort import generate_detections
 
-from depth_sensor import D435i
-
 from embeddings_classifier import EmbeddingsClassifier
 from depth_map_classifier import DepthMapsClassifier
 
@@ -27,32 +25,6 @@ if gpus:
     except RuntimeError as e:
         print(e)
 
-""" SAVING ON GPU/CPU 
-# 1) Save on GPU, Load on CPU
-device = torch.device("cuda")
-model.to(device)
-torch.save(model.state_dict(), PATH)
-device = torch.device('cpu')
-model = Model(*args, **kwargs)
-model.load_state_dict(torch.load(PATH, map_location=device))
-# 2) Save on GPU, Load on GPU
-device = torch.device("cuda")
-model.to(device)
-torch.save(model.state_dict(), PATH)
-model = Model(*args, **kwargs)
-model.load_state_dict(torch.load(PATH))
-model.to(device)
-# Note: Be sure to use the .to(torch.device('cuda')) function 
-# on all model inputs, too!
-# 3) Save on CPU, Load on GPU
-torch.save(model.state_dict(), PATH)
-device = torch.device("cuda")
-model = Model(*args, **kwargs)
-model.load_state_dict(torch.load(PATH, map_location="cuda:0"))  # Choose whatever GPU device number you want
-model.to(device)
-# This loads the model to a given GPU device. 
-# Next, be sure to call model.to(torch.device('cuda')) to convert the model’s parameter tensors to CUDA tensors
-"""
 
 def yolo_object_tracking_with_apps():
     classes = ["person","bicycle","car","motorcycle","airplane","bus","train","truck","boat",
@@ -99,8 +71,9 @@ def yolo_object_tracking_with_apps():
 
 
     #D435i setup
-    use_sensor = True
+    use_sensor = False
     if use_sensor:
+        from depth_sensor import D435i
         sensor = D435i(convert_to_color_map = True, width = 640, height = 480, enable_depth = True, enable_rgb = True, enable_infrared = False)
 
         width = sensor.width
@@ -122,7 +95,7 @@ def yolo_object_tracking_with_apps():
     max_n_obj = 50
     last_obj_to_del = 0
 
-    do_lpr = False
+    do_lpr = True
     save_lp = False
 
     if do_lpr:

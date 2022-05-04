@@ -8,3 +8,4 @@ yolo_opencv_test.py
 D435i_test_OpenCV.py
 tfod_object_tracking.py
 db_test.py
+.dockerignore

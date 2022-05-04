@@ -4,7 +4,7 @@ import numpy as np
 import re
 import easyocr
 import os
-from depth_sensor import D435i
+#from depth_sensor import D435i
 import torch
 import psycopg2 as pg
 import pandas as pd
@@ -455,7 +455,7 @@ def view_face_embeddings(face_embeddings_path):
 
 
 class DBInterface():
-    def __init__(self, password='', username='postgres', hostname='localhost', database='face_recognition', port_id=5432):
+    def __init__(self, password='148635', username='postgres', hostname='localhost', database='face_recognition', port_id=5432):
         self.host = hostname
         self.dbname = database
         self.username = username
