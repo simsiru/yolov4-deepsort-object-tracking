@@ -6,5 +6,8 @@ COPY . /home/yolov4_tracking_apps/
 
 RUN cd /home/yolov4_tracking_apps/ && pip3 install -r requirements.txt --no-deps
 
+WORKDIR /home/yolov4_tracking_apps
 
-#docker run -it -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY --gpus all yolov4-tracking
+ENTRYPOINT python3 yolo_object_tracking.py
+
+

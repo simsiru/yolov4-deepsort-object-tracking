@@ -1,13 +1,11 @@
 import tensorflow as tf
 import cv2
 import numpy as np
-from opencv_object_detector import ObjectDetection
 import time
 from collections import Counter
-from utils import draw_bbox, draw_bbox_tracking, draw_bbox_face_rec, EasyocrNumberPlateRecognition
 import torch
-
 from facenet_pytorch import MTCNN, InceptionResnetV1
+import argparse
 
 from deep_sort import nn_matching
 from deep_sort.detection import Detection
@@ -16,6 +14,8 @@ from deep_sort import generate_detections
 
 from embeddings_classifier import EmbeddingsClassifier
 from depth_map_classifier import DepthMapsClassifier
+from opencv_object_detector import ObjectDetection
+from utils import draw_bbox, draw_bbox_tracking, draw_bbox_face_rec, EasyocrNumberPlateRecognition
 
 gpus = tf.config.list_physical_devices('GPU')
 if gpus:
@@ -26,7 +26,9 @@ if gpus:
         print(e)
 
 
-def yolo_object_tracking_with_apps():
+def yolo_object_tracking_with_apps(roi_select = False, use_sensor = False, do_lpr = False,
+    save_lp = False, do_face_rec = False, do_face_rec_with_depth_map = False, video_file_path=None):
+
     classes = ["person","bicycle","car","motorcycle","airplane","bus","train","truck","boat",
         "traffic light","fire hydrant","stop sign","parking meter","bench","bird","cat",
         "dog","horse","sheep","cow","elephant","bear","zebra","giraffe","backpack","umbrella",
@@ -65,13 +67,11 @@ def yolo_object_tracking_with_apps():
 
 
     #ROI setup
-    roi_select = False
     roi_x = 0
     roi_y = 0
 
 
     #D435i setup
-    use_sensor = False
     if use_sensor:
         from depth_sensor import D435i
         sensor = D435i(convert_to_color_map = True, width = 640, height = 480, enable_depth = True, enable_rgb = True, enable_infrared = False)
@@ -81,8 +81,12 @@ def yolo_object_tracking_with_apps():
 
     #Camera stream setup
     else:
-        #cap = cv2.VideoCapture(0)
-        cap = cv2.VideoCapture("test_videos/traffic1.mp4")
+        if video_file_path is not None:
+            cap = cv2.VideoCapture(video_file_path)
+        else:
+            cap = cv2.VideoCapture(0)
+
+        #cap = cv2.VideoCapture("test_videos/traffic3.mp4")
         #cap = cv2.VideoCapture("test_videos/people1.mp4")
 
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -95,9 +99,6 @@ def yolo_object_tracking_with_apps():
     max_n_obj = 50
     last_obj_to_del = 0
 
-    do_lpr = True
-    save_lp = False
-
     if do_lpr:
         ocr = EasyocrNumberPlateRecognition(area_th=0.2)
         num_pl_cl = 0
@@ -108,9 +109,6 @@ def yolo_object_tracking_with_apps():
 
 
     #FR setup
-    do_face_rec = False
-    do_face_rec_with_depth_map = False
-
     if do_face_rec_with_depth_map:
         face_depth_map_classifier = DepthMapsClassifier(len(face_idx_to_class_map), )
         face_depth_map_classifier.load_state_dict(torch.load('depth_map_classifier_model/dm_classifier.pth', map_location="cuda:0"))
@@ -405,4 +403,16 @@ def yolo_object_tracking_with_apps():
 
 
 if __name__ == "__main__":
-    yolo_object_tracking_with_apps()
+    parser = argparse.ArgumentParser(description='Start YOLOv4 object tracking')
+    parser.add_argument('--roi', type=bool, default=False, help='Select region of interest in video stream')
+    parser.add_argument('-s', '--sensor', type=bool, default=False, help='Whether or not to use a realsense D435i sensor')
+    parser.add_argument('--lpr', type=bool, default=False, help='Activate license plate recognition application')
+    parser.add_argument('--lpr_save_img', type=bool, default=False, help='Whether or not to save license plate image when license plate recognition is active')
+    parser.add_argument('--fr', type=bool, default=False, help='Activate face recognition application')
+    parser.add_argument('--fr_depth_map', type=bool, default=False, help='Whether or not to use face depth maps when face recognition and sensor is active')
+    parser.add_argument('-v', '--video_file_path', default=None, help='Use a video for tracking and if the path is not provided use a webcam')
+    args = parser.parse_args()
+
+    yolo_object_tracking_with_apps(args.roi, args.sensor, args.lpr,
+    args.lpr_save_img, args.fr, args.fr_depth_map, args.video_file_path)
+
