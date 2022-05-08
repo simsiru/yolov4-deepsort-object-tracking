@@ -9,3 +9,5 @@ D435i_test_OpenCV.py
 tfod_object_tracking.py
 db_test.py
 .dockerignore
+opencv_server.py
+opencv_client.py
