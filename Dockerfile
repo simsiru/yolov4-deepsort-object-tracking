@@ -8,7 +8,5 @@ RUN cd /home/yolov4_tracking_apps/ && pip3 install -r requirements.txt --no-deps
 
 WORKDIR /home/yolov4_tracking_apps
 
-#ENTRYPOINT python3 yolo_object_tracking.py
-ENTRYPOINT ["python3", "mot_server.py"]
-
-
+#ENTRYPOINT python3 mot_server.py
+#ENTRYPOINT ["python3", "mot_server.py"]

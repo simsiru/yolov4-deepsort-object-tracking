@@ -414,13 +414,20 @@ def yolo_object_tracking_with_apps(roi_select = False, use_sensor = False, do_lp
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Start YOLOv4 object tracking')
-    parser.add_argument('--roi', type=bool, default=False, help='Select region of interest in video stream')
-    parser.add_argument('-s', '--sensor', type=bool, default=False, help='Whether or not to use a realsense D435i sensor')
-    parser.add_argument('--lpr', type=bool, default=False, help='Activate license plate recognition application')
-    parser.add_argument('--lpr_save_img', type=bool, default=False, help='Whether or not to save license plate image when license plate recognition is active')
-    parser.add_argument('--fr', type=bool, default=False, help='Activate face recognition application')
-    parser.add_argument('--fr_depth_map', type=bool, default=False, help='Whether or not to use face depth maps when face recognition and sensor is active')
-    parser.add_argument('-v', '--video_file_path', default=None, help='Use a video for tracking and if the path is not provided use a webcam')
+    parser.add_argument('--roi', type=bool, default=False,
+    help='Select region of interest in video stream')
+    parser.add_argument('-s', '--sensor', type=bool, default=False,
+    help='Whether or not to use a realsense D435i sensor')
+    parser.add_argument('--lpr', type=bool, default=False,
+    help='Activate license plate recognition application')
+    parser.add_argument('--lpr_save_img', type=bool, default=False,
+    help='Whether or not to save license plate image when license plate recognition is active')
+    parser.add_argument('--fr', type=bool, default=False,
+    help='Activate face recognition application')
+    parser.add_argument('--fr_depth_map', type=bool, default=False,
+    help='Whether or not to use face depth maps when face recognition and sensor is active')
+    parser.add_argument('-v', '--video_file_path', default=None,
+    help='Use a video for tracking and if the path is not provided use a webcam')
     args = parser.parse_args()
 
     yolo_object_tracking_with_apps(args.roi, args.sensor, args.lpr,

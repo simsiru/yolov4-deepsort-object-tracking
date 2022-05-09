@@ -11,3 +11,4 @@ db_test.py
 .dockerignore
 opencv_server.py
 opencv_client.py
+requirements_.txt

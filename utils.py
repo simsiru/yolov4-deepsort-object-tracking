@@ -4,44 +4,17 @@ import numpy as np
 import re
 import easyocr
 import os
-#from depth_sensor import D435i
+from depth_sensor import D435i
 import torch
 import psycopg2 as pg
 import pandas as pd
+import socket
+import struct
+import pickle
 
 from opencv_object_detector import ObjectDetection
 from facenet_pytorch import MTCNN, InceptionResnetV1
-#easyocr_reader = easyocr.Reader(['en'], gpu=True) # this needs to run only once to load the model into memory
 
-
-""" def recognize_plate_number_easyocr(num_plate_box, coords, area_th=0.2):
-    #img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    num_plate_box = cv2.cvtColor(num_plate_box, cv2.COLOR_BGR2RGB)
-
-    xmin, ymin, xmax, ymax = coords
-
-    # get the subimage that makes up the bounded region and take an additional 5 pixels on each side
-    #num_plate_box = img[int(ymin):int(ymax), int(xmin):int(xmax)] #[int(ymin)-5:int(ymax)+5, int(xmin)-5:int(xmax)+5]
-
-    plate_num = ""
-
-    box_area = (xmax - xmin) * (ymax - ymin)
-
-    try:
-        text = easyocr_reader.readtext(num_plate_box, detail=1)
-
-        for res in text:
-            length = np.sum(np.subtract(res[0][1], res[0][0]))
-            height = np.sum(np.subtract(res[0][2], res[0][1]))
-
-            if ((length * height) / box_area) > area_th:
-                plate_num += res[1]
-
-        plate_num = re.sub('[\W_]+', '', plate_num)
-    except: 
-        text = None
-
-    return plate_num """
 
 class EasyocrNumberPlateRecognition():
     def __init__(self, area_th=0.2):
@@ -643,3 +616,166 @@ def insert_delete_update_person_face_data_in_database(n_img_class = 10, save_fac
     FROM face_embeddings_and_depth_maps
     """
     print(db_interface.execute_sql_script(sql_script, return_result = True))
+
+
+
+def insert_delete_update_person_face_data_in_database_lan(n_img_class = 10, port = 9999):
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    emb_model = InceptionResnetV1(pretrained='vggface2').eval().to(device)
+    mtcnn = MTCNN(device=device)
+
+    fdet_model = ObjectDetection("yolo_models/yolov4-tiny_f_.weights",
+    "yolo_models/yolov4-tiny_1_cl.cfg", nms_thr=0.4, conf_thr=0.5, img_size=416)
+
+    curr_img_n = 0
+
+    person_name = ""
+
+    name_saving_mode = True
+    emb_saving_mode = False
+
+    dm_xmin, dm_ymin, dm_xmax, dm_ymax = 180, 80, 460, 400
+
+    db_interface = DBInterface(username='postgres', hostname='localhost',
+    database='face_recognition', port_id=5432)
+
+
+
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    host_name  = socket.gethostname()
+    host_ip = socket.gethostbyname(host_name)
+    socket_address = (host_ip, port)
+    server_socket.bind(socket_address)
+    server_socket.listen(5)
+    print("LISTENING AT:",socket_address)
+    data = b""
+    payload_size = struct.calcsize("Q")
+
+    client_command = ""
+
+    while True:
+        client_socket, addr = server_socket.accept()
+        print('CLIENT CONNECTED FROM:', addr)
+        while client_socket:
+            try:
+                while len(data) < payload_size:
+                    packet = client_socket.recv(4*1024) # 4K
+                    if not packet:
+                        break
+                    data+=packet
+                packed_msg_size = data[:payload_size]
+                data = data[payload_size:]
+                msg_size = struct.unpack("Q",packed_msg_size)[0]   
+                while len(data) < msg_size:
+                    data += client_socket.recv(4*1024)
+                frame_data = data[:msg_size]
+                data  = data[msg_size:]
+                rgb = pickle.loads(frame_data)
+
+                while len(data) < payload_size:
+                    packet = client_socket.recv(4*1024) # 4K
+                    if not packet:
+                        break
+                    data+=packet
+                packed_msg_size = data[:payload_size]
+                data = data[payload_size:]
+                msg_size = struct.unpack("Q",packed_msg_size)[0]   
+                while len(data) < msg_size:
+                    data += client_socket.recv(4*1024)
+                frame_data = data[:msg_size]
+                data  = data[msg_size:]
+                raw_depth = pickle.loads(frame_data)
+
+                while len(data) < payload_size:
+                    packet = client_socket.recv(4*1024) # 4K
+                    if not packet:
+                        break
+                    data+=packet
+                packed_msg_size = data[:payload_size]
+                data = data[payload_size:]
+                msg_size = struct.unpack("Q",packed_msg_size)[0]   
+                while len(data) < msg_size:
+                    data += client_socket.recv(4*1024)
+                frame_data = data[:msg_size]
+                data  = data[msg_size:]
+                client_command = pickle.loads(frame_data)
+
+                #client_command = client_socket.recv(1) # 4K
+                #client_command = client_command.decode("utf-8")
+            except Exception:
+                break
+
+            #depth_with_bboxes = depth.copy()
+            rgb_with_bboxes = rgb.copy()
+            _, _, bboxes = fdet_model.detect(rgb)
+            for box in bboxes:
+                (x, y, w, h) = box
+                xmin, ymin, xmax, ymax = x, y, x + w, y + h
+                #cv2.rectangle(depth_with_bboxes, (xmin, ymax), (xmax, ymin), (255,255,255), 2)
+                cv2.rectangle(rgb_with_bboxes, (xmin, ymax), (xmax, ymin), (255,255,255), 2)
+
+            face_depth_map = raw_depth[dm_ymin:dm_ymax, dm_xmin:dm_xmax]
+            #cv2.rectangle(depth_with_bboxes, (dm_xmin, dm_ymax), (dm_xmax, dm_ymin), (255,255,255), 2)
+            #frame_with_bboxes = np.hstack((depth_with_bboxes, rgb_with_bboxes))
+            #cv2.imshow('Depth and rgb camera streams', frame_with_bboxes)
+            rgb = cv2.cvtColor(rgb, cv2.COLOR_BGR2RGB)
+            
+            if client_command == "a" and name_saving_mode:
+                person_name = input("Enter next person's name: ")
+                print(f"Currently collecting {person_name} data")
+                curr_img_n = 0
+                name_saving_mode = False
+                emb_saving_mode = True
+
+            if client_command == "s" and emb_saving_mode and curr_img_n <= n_img_class - 1:
+                face = mtcnn(rgb)
+                if face is None:
+                    continue
+                embeddings = emb_model(face.unsqueeze(0).to(device)).detach().cpu()
+
+                if curr_img_n == 0:
+                    face_embeddings = embeddings
+                    face_depth_maps = torch.tensor(face_depth_map.astype('int16')).unsqueeze(0)
+                else:
+                    face_embeddings = torch.cat((face_embeddings, embeddings), 0)
+                    face_depth_maps = torch.cat((face_depth_maps,
+                    torch.tensor(face_depth_map.astype('int16')).unsqueeze(0)), 0)
+
+                if curr_img_n == n_img_class - 1:
+                    face_embeddings = face_embeddings.numpy()
+                    face_depth_maps = face_depth_maps.numpy()
+
+                    sql_script = """
+                    INSERT INTO face_embeddings_and_depth_maps(person_name, face_embedding, face_depth_map)
+                    VALUES (%s, %s, %s)
+                    """
+                    db_interface.execute_sql_script(sql_script,
+                    (person_name, db_interface.numpy_array_to_bytes(face_embeddings),
+                    db_interface.numpy_array_to_bytes(face_depth_maps)))
+
+                    name_saving_mode = True
+                    emb_saving_mode = False
+
+                curr_img_n += 1
+                print(f"Embedding {curr_img_n} saved")
+
+            if client_command == "d" and name_saving_mode:
+                delete_person_name = input("Enter a person's name to delete: ")
+                sql_script = """
+                DELETE FROM face_embeddings_and_depth_maps
+                WHERE person_name = %s
+                """
+                db_interface.execute_sql_script(sql_script, (delete_person_name,))
+                print(f"{delete_person_name} data deleted")
+
+            a = pickle.dumps(rgb_with_bboxes)
+            message = struct.pack("Q",len(a))+a
+            client_socket.sendall(message)
+
+        print(f'CLIENT FROM: {addr} DISCONNECTED')
+
+        sql_script = """
+        SELECT *
+        FROM face_embeddings_and_depth_maps
+        """
+        print(db_interface.execute_sql_script(sql_script, return_result = True))
