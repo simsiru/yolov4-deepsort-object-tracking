@@ -4,6 +4,8 @@ __pycache__/
 face_embeddings_data/
 face_img_data/
 jetson_nano_files/
+saved_number_plates/
+ssdmobilenetv2_model/
 yolo_opencv_test.py
 D435i_test_OpenCV.py
 tfod_object_tracking.py
