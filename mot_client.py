@@ -48,11 +48,12 @@ send_depth_map = False, video_file_path = None, data_collect_mode = False):
             message = struct.pack("Q",len(a))+a
             client_socket.sendall(message)
 
-        a = pickle.dumps(client_command)
-        message = struct.pack("Q",len(a))+a
-        client_socket.sendall(message)
-        #client_socket.sendall(bytes(client_command, "utf-8"))
-        client_command = "0"
+        if data_collect_mode:
+            a = pickle.dumps(client_command)
+            message = struct.pack("Q",len(a))+a
+            client_socket.sendall(message)
+            #client_socket.sendall(bytes(client_command, "utf-8"))
+            client_command = "0"
 
 
         try:

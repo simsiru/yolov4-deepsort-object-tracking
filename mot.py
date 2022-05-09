@@ -49,7 +49,8 @@ def yolo_object_tracking_with_apps(roi_select = False, use_sensor = False, do_lp
     """ classes = ["Face"]
     track_classes = ["Face"] """
 
-    model = ObjectDetection("yolo_models/yolov4-tiny.weights", "yolo_models/yolov4-tiny.cfg", nms_thr=0.4, conf_thr=0.5, img_size=416)
+    model = ObjectDetection("yolo_models/yolov4-tiny.weights",
+    "yolo_models/yolov4-tiny.cfg", nms_thr=0.4, conf_thr=0.5, img_size=416)
 
 
     #DeepSORT setup
@@ -78,7 +79,8 @@ def yolo_object_tracking_with_apps(roi_select = False, use_sensor = False, do_lp
     #D435i setup
     if use_sensor:
         from depth_sensor import D435i
-        sensor = D435i(convert_to_color_map = True, width = 640, height = 480, enable_depth = True, enable_rgb = True, enable_infrared = False)
+        sensor = D435i(convert_to_color_map = True, width = 640,
+        height = 480, enable_depth = True, enable_rgb = True, enable_infrared = False)
 
         width = sensor.width
         height = sensor.height
@@ -109,17 +111,11 @@ def yolo_object_tracking_with_apps(roi_select = False, use_sensor = False, do_lp
         lp_obj_dict = {}
         num_plate_data_dir = "saved_number_plates/"
 
-        model_lp = ObjectDetection("yolo_models/yolov4-tiny_lp.weights", "yolo_models/yolov4-tiny_1_cl.cfg", nms_thr=0.4, conf_thr=0.5, img_size=416)
+        model_lp = ObjectDetection("yolo_models/yolov4-tiny_lp.weights",
+        "yolo_models/yolov4-tiny_1_cl.cfg", nms_thr=0.4, conf_thr=0.5, img_size=416)
 
 
     #FR setup
-    if do_face_rec_with_depth_map:
-        face_depth_map_classifier = DepthMapsClassifier(len(face_idx_to_class_map), )
-        face_depth_map_classifier.load_state_dict(torch.load('depth_map_classifier_model/dm_classifier.pth', map_location="cuda:0"))
-        face_depth_map_classifier.eval().to(device)
-
-        dm_xmin, dm_ymin, dm_xmax, dm_ymax = 180, 80, 460, 400
-
     if do_face_rec and use_sensor:
         device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         face_obj_dict = {}
@@ -129,16 +125,26 @@ def yolo_object_tracking_with_apps(roi_select = False, use_sensor = False, do_lp
         face_embeddings_model = InceptionResnetV1(pretrained='vggface2').eval().to(device)
 
         face_embeddings_classifier = EmbeddingsClassifier(len(face_idx_to_class_map))
-        face_embeddings_classifier.load_state_dict(torch.load('embeddings_classifier_model/emb_classifier.pth', map_location="cuda:0"))
+        face_embeddings_classifier.load_state_dict(torch.load('embeddings_classifier_model/emb_classifier.pth',
+        map_location="cuda:0"))
         face_embeddings_classifier.eval().to(device)
 
         mtcnn = MTCNN(device=device)
 
-        face_min_rec_prob = 70
+        face_min_rec_prob = 80
 
-        model = ObjectDetection("yolo_models/yolov4-tiny_f_.weights", "yolo_models/yolov4-tiny_1_cl.cfg", nms_thr=0.4, conf_thr=0.5, img_size=416)
+        model = ObjectDetection("yolo_models/yolov4-tiny_f_.weights",
+        "yolo_models/yolov4-tiny_1_cl.cfg", nms_thr=0.4, conf_thr=0.5, img_size=416)
         classes = ["Face"]
         track_classes = ["Face"]
+
+    if do_face_rec_with_depth_map:
+        face_depth_map_classifier = DepthMapsClassifier(len(face_idx_to_class_map), (320, 280))
+        face_depth_map_classifier.load_state_dict(torch.load('depth_map_classifier_model/dm_classifier.pth',
+        map_location="cuda:0"))
+        face_depth_map_classifier.eval().to(device)
+
+        dm_xmin, dm_ymin, dm_xmax, dm_ymax = 180, 80, 460, 400
 
 
     rec_proc_state_map = {0: "|",
@@ -336,16 +342,12 @@ def yolo_object_tracking_with_apps(roi_select = False, use_sensor = False, do_lp
 
 
                         if do_face_rec_with_depth_map:
-                            out = face_depth_map_classifier(torch.tensor(raw_depth).unsqueeze(0)).detach().cpu()
-                            out = torch.nn.functional.softmax(out)
+                            out = face_depth_map_classifier(torch.tensor((raw_depth / 65_535.0).astype('float32')).unsqueeze(0).unsqueeze(0).to(device))
+                            out = torch.nn.functional.softmax(out.detach().cpu())
                             face_obj_dict[tracking_id][3].append(out.numpy().copy()[0])
 
 
                 if face_obj_dict[tracking_id][0] == n_det + 1:
-                    #res = face_embeddings_classifier(face_obj_dict[tracking_id][1])
-                    #mean = np.mean(res, axis=0)
-                    #print(face_obj_dict[tracking_id][1])
-                    
                     mean = np.mean(face_obj_dict[tracking_id][1], axis=0)
                     #print(mean)
                     idx = np.argmax(mean)
@@ -371,7 +373,7 @@ def yolo_object_tracking_with_apps(roi_select = False, use_sensor = False, do_lp
                             print(f'Depth map ID: {face_idx_to_class_map[idx]}')
                         else:
                             #face_obj_dict[tracking_id][2] = "HOSTILE DETECTED"
-                            print(f'Depth map unknown')
+                            print(f'Depth map ID: Unknown')
 
 
 
@@ -409,7 +411,6 @@ def yolo_object_tracking_with_apps(roi_select = False, use_sensor = False, do_lp
         else:
             cv2.imshow('Object tracking with deepSORT', frame_with_bboxes)
         
-        #print(f'FPS: {fps}, Frame size: {frame_with_bboxes.shape}')
 
 
 if __name__ == "__main__":

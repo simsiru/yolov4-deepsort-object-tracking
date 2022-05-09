@@ -79,14 +79,6 @@ do_face_rec = False, do_face_rec_with_depth_map = False, port = 9999):
 
 
     #FR setup
-    if do_face_rec_with_depth_map:
-        face_depth_map_classifier = DepthMapsClassifier(len(face_idx_to_class_map), )
-        face_depth_map_classifier.load_state_dict(torch.load('depth_map_classifier_model/dm_classifier.pth',
-        map_location="cuda:0"))
-        face_depth_map_classifier.eval().to(device)
-
-        dm_xmin, dm_ymin, dm_xmax, dm_ymax = 180, 80, 460, 400
-
     if do_face_rec:
         device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         face_obj_dict = {}
@@ -102,12 +94,20 @@ do_face_rec = False, do_face_rec_with_depth_map = False, port = 9999):
 
         mtcnn = MTCNN(device=device)
 
-        face_min_rec_prob = 70
+        face_min_rec_prob = 80
 
         model = ObjectDetection("yolo_models/yolov4-tiny_f_.weights",
         "yolo_models/yolov4-tiny_1_cl.cfg", nms_thr=0.4, conf_thr=0.5, img_size=416)
         classes = ["Face"]
         track_classes = ["Face"]
+
+    if do_face_rec_with_depth_map:
+        face_depth_map_classifier = DepthMapsClassifier(len(face_idx_to_class_map), (320, 280))
+        face_depth_map_classifier.load_state_dict(torch.load('depth_map_classifier_model/dm_classifier.pth',
+        map_location="cuda:0"))
+        face_depth_map_classifier.eval().to(device)
+
+        dm_xmin, dm_ymin, dm_xmax, dm_ymax = 180, 80, 460, 400
 
 
     rec_proc_state_map = {0: "|",
@@ -338,16 +338,12 @@ do_face_rec = False, do_face_rec_with_depth_map = False, port = 9999):
 
 
                             if do_face_rec_with_depth_map:
-                                out = face_depth_map_classifier(torch.tensor(raw_depth).unsqueeze(0)).detach().cpu()
-                                out = torch.nn.functional.softmax(out)
+                                out = face_depth_map_classifier(torch.tensor((raw_depth / 65_535.0).astype('float32')).unsqueeze(0).unsqueeze(0).to(device))
+                                out = torch.nn.functional.softmax(out.detach().cpu())
                                 face_obj_dict[tracking_id][3].append(out.numpy().copy()[0])
 
 
                     if face_obj_dict[tracking_id][0] == n_det + 1:
-                        #res = face_embeddings_classifier(face_obj_dict[tracking_id][1])
-                        #mean = np.mean(res, axis=0)
-                        #print(face_obj_dict[tracking_id][1])
-                        
                         mean = np.mean(face_obj_dict[tracking_id][1], axis=0)
                         #print(mean)
                         idx = np.argmax(mean)
@@ -373,7 +369,7 @@ do_face_rec = False, do_face_rec_with_depth_map = False, port = 9999):
                                 print(f'Depth map ID: {face_idx_to_class_map[idx]}')
                             else:
                                 #face_obj_dict[tracking_id][2] = "HOSTILE DETECTED"
-                                print(f'Depth map unknown')
+                                print(f'Depth map ID: Unknown')
 
 
 

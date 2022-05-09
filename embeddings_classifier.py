@@ -11,7 +11,7 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class EmbeddingsDataset(Dataset):
-    def __init__(self, embeddings_dir, embeddings_labels_dir, transforms=None, target_transforms=None):
+    def __init__(self, embeddings_dir=None, embeddings_labels_dir=None, transforms=None, target_transforms=None):
         super(EmbeddingsDataset, self).__init__()
 
         db_interface = DBInterface(username='postgres', hostname='localhost',
@@ -103,8 +103,9 @@ summary(model, input_size=(batch_size, 512)) """
 def training():
     transform = transforms.ToTensor()
 
-    train_dataset = EmbeddingsDataset("face_embeddings_data/face_embeddings.pt",
-    "face_embeddings_data/face_embeddings_labels.pt")
+    #train_dataset = EmbeddingsDataset("face_embeddings_data/face_embeddings.pt",
+    #"face_embeddings_data/face_embeddings_labels.pt")
+    train_dataset = EmbeddingsDataset()
 
     train_dataloader = DataLoader(train_dataset, 16, shuffle=True)
 

@@ -141,8 +141,12 @@ def training():
         #transforms.Normalize((0.5), (0.5))
     ])
 
-    train_dataset = DepthMapsDataset("face_embeddings_data/face_depth_maps.pt",
-    "face_embeddings_data/face_embeddings_labels.pt", transforms=transform)
+    #train_dataset = DepthMapsDataset("face_embeddings_data/face_depth_maps.pt",
+    #"face_embeddings_data/face_embeddings_labels.pt", transforms=transform)
+    train_dataset = DepthMapsDataset(transforms=transform)
+
+    #print(train_dataset.depth_dims)
+    #return
 
     train_dataloader = DataLoader(train_dataset, 8, shuffle=True)
 
@@ -158,7 +162,7 @@ def training():
 
     optimizer = torch.optim.AdamW(model.parameters())
 
-    n_epochs = 50
+    n_epochs = 100
 
     for epoch in range(n_epochs):
         for dm, label in train_dataloader:
