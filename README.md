@@ -10,13 +10,13 @@ First run the docker container for mot server. Enter a port to use default is 99
 Also the use of region of interests can activated (--roi).
 
 ```
-docker run --rm -it -p PORT:PORT --gpus all mot python3 mot_server.py -p=PORT
+docker run --rm -it -p PORT:PORT --gpus all ladonq/mot:0.0.1 python3 mot_server.py -p=PORT
 ```
 ```
-docker run --rm -it -p PORT:PORT --gpus all mot python3 mot_server.py -p=PORT --lpr 1 --roi 0/1
+docker run --rm -it -p PORT:PORT --gpus all ladonq/mot:0.0.1 python3 mot_server.py -p=PORT --lpr 1 --roi 0/1
 ```
 ```
-docker run --rm -it -p PORT:PORT --gpus all mot python3 mot_server.py -p=PORT --fr 1 --roi 0/1
+docker run --rm -it -p PORT:PORT --gpus all ladonq/mot:0.0.1 python3 mot_server.py -p=PORT --fr 1 --roi 0/1
 ```
 
 Use the mot_client.py script for sending video data and receiving processed data over LAN. Enter local IP nad port of MOT client docker container.
