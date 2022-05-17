@@ -3,7 +3,7 @@ import numpy as np
 import argparse
 
 
-def stream_video_data_over_lan(host_ip = '172.17.176.1', port = 9999, use_sensor = True,
+def stream_video_data_over_lan(host_ip, port = 9999, use_sensor = True,
 send_depth_map = False, video_file_path = None, data_collect_mode = False):
     client_socket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
     client_socket.connect((host_ip,port))
@@ -72,7 +72,7 @@ send_depth_map = False, video_file_path = None, data_collect_mode = False):
             data  = data[msg_size:]
             frame = pickle.loads(frame_data)
         except Exception:
-            continue
+            pass
 
 
         if send_depth_map:
@@ -100,11 +100,11 @@ send_depth_map = False, video_file_path = None, data_collect_mode = False):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Start webcam or depth sensor stream to YOLOv4 MOT over LAN')
-    parser.add_argument('--ip', type=str, default='172.17.176.1',
+    parser.add_argument('--ip', type=str, required=True,
     help='Local IP of MOT docker container')
     parser.add_argument('-p', '--port', type=int, default=9999,
     help='Port for MOT docker container')
-    parser.add_argument('-s', '--sensor', type=bool, default=True,
+    parser.add_argument('-s', '--sensor', type=bool, default=False,
     help='Whether or not to use a realsense D435i sensor')
     parser.add_argument('--dm', type=bool, default=False,
     help='Whether or not to use face depth maps when face recognition and sensor is active')

@@ -6,7 +6,7 @@ from utils import get_and_save_person_face_embeddings, \
 import argparse
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Start webcam or depth sensor stream to YOLOv4 MOT over LAN')
+    parser = argparse.ArgumentParser(description='Collect face embeddings and depth maps for face recognition')
 
     parser.add_argument('--script', type=str, default='1',
     help='Select which script to use (0, 1, 2)')
@@ -18,6 +18,9 @@ if __name__ == "__main__":
     help='Whether or not to save images of faces')
     parser.add_argument('--save_path', type=str, default="face_img_data",
     help='Save path for images when save images is active')
+
+    parser.add_argument('--save_dm', type=bool, default=False,
+    help='Whether or not to save depth maps of faces')
 
     parser.add_argument('-p', '--port', type=int, default=9999,
     help='Choose a port for a server to listen at, if not provided port 9999 will be used')
@@ -40,6 +43,6 @@ if __name__ == "__main__":
         args.save_img, args.save_path)
     elif args.script == '1':
         insert_delete_update_person_face_data_in_database_lan(args.n_img,
-        args.port)
+        args.port, args.save_dm)
     elif args.script == '2':
         pass

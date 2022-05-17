@@ -619,7 +619,7 @@ def insert_delete_update_person_face_data_in_database(n_img_class = 10, save_fac
 
 
 
-def insert_delete_update_person_face_data_in_database_lan(n_img_class = 10, port = 9999):
+def insert_delete_update_person_face_data_in_database_lan(n_img_class = 10, port = 9999, save_depth_map = True):
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     emb_model = InceptionResnetV1(pretrained='vggface2').eval().to(device)
     mtcnn = MTCNN(device=device)
@@ -672,19 +672,22 @@ def insert_delete_update_person_face_data_in_database_lan(n_img_class = 10, port
                 data  = data[msg_size:]
                 rgb = pickle.loads(frame_data)
 
-                while len(data) < payload_size:
-                    packet = client_socket.recv(4*1024) # 4K
-                    if not packet:
-                        break
-                    data+=packet
-                packed_msg_size = data[:payload_size]
-                data = data[payload_size:]
-                msg_size = struct.unpack("Q",packed_msg_size)[0]   
-                while len(data) < msg_size:
-                    data += client_socket.recv(4*1024)
-                frame_data = data[:msg_size]
-                data  = data[msg_size:]
-                raw_depth = pickle.loads(frame_data)
+                if save_depth_map:
+                    while len(data) < payload_size:
+                        packet = client_socket.recv(4*1024) # 4K
+                        if not packet:
+                            break
+                        data+=packet
+                    packed_msg_size = data[:payload_size]
+                    data = data[payload_size:]
+                    msg_size = struct.unpack("Q",packed_msg_size)[0]   
+                    while len(data) < msg_size:
+                        data += client_socket.recv(4*1024)
+                    frame_data = data[:msg_size]
+                    data  = data[msg_size:]
+                    raw_depth = pickle.loads(frame_data)
+                else:
+                    raw_depth = rgb
 
                 while len(data) < payload_size:
                     packet = client_socket.recv(4*1024) # 4K
@@ -745,13 +748,21 @@ def insert_delete_update_person_face_data_in_database_lan(n_img_class = 10, port
                     face_embeddings = face_embeddings.numpy()
                     face_depth_maps = face_depth_maps.numpy()
 
-                    sql_script = """
-                    INSERT INTO face_embeddings_and_depth_maps(person_name, face_embedding, face_depth_map)
-                    VALUES (%s, %s, %s)
-                    """
-                    db_interface.execute_sql_script(sql_script,
-                    (person_name, db_interface.numpy_array_to_bytes(face_embeddings),
-                    db_interface.numpy_array_to_bytes(face_depth_maps)))
+                    if save_depth_map:
+                        sql_script = """
+                        INSERT INTO face_embeddings_and_depth_maps(person_name, face_embedding, face_depth_map)
+                        VALUES (%s, %s, %s)
+                        """
+                        db_interface.execute_sql_script(sql_script,
+                        (person_name, db_interface.numpy_array_to_bytes(face_embeddings),
+                        db_interface.numpy_array_to_bytes(face_depth_maps)))
+                    else:
+                        sql_script = """
+                        INSERT INTO face_embeddings_and_depth_maps(person_name, face_embedding)
+                        VALUES (%s, %s)
+                        """
+                        db_interface.execute_sql_script(sql_script,
+                        (person_name, db_interface.numpy_array_to_bytes(face_embeddings)))
 
                     name_saving_mode = True
                     emb_saving_mode = False
