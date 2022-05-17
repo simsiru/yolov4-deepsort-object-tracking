@@ -7,7 +7,7 @@ YOLOv4 and DeepSORT object tracking application in automatic license plate recog
 ### Windows
 
 First run the docker container for mot server. Enter a port to use default is 9999 and whether to activate license plate recognition (--lpr) or face recognition (--fr).
-Also the use of region of interests can activated (--roi).
+The region of interests can be activated (--roi) to select a part of a screen.
 
 ```
 docker run --rm -it -p PORT:PORT --gpus all ladonq/mot:0.0.1 python3 mot_server.py -p=PORT
