@@ -11,9 +11,11 @@ Also the use of region of interests can activated (--roi).
 
 ```
 docker run --rm -it -p PORT:PORT --gpus all mot python3 mot_server.py -p=PORT
-
+```
+```
 docker run --rm -it -p PORT:PORT --gpus all mot python3 mot_server.py -p=PORT --lpr 1 --roi 0/1
-
+```
+```
 docker run --rm -it -p PORT:PORT --gpus all mot python3 mot_server.py -p=PORT --fr 1 --roi 0/1
 ```
 
