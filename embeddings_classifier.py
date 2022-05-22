@@ -11,11 +11,8 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class EmbeddingsDataset(Dataset):
-    def __init__(self, embeddings_dir=None, embeddings_labels_dir=None, transforms=None, target_transforms=None):
+    def __init__(self, db_interface, embeddings_dir=None, embeddings_labels_dir=None, transforms=None, target_transforms=None):
         super(EmbeddingsDataset, self).__init__()
-
-        db_interface = DBInterface(username='postgres', hostname='localhost',
-        database='face_recognition', port_id=5432)
 
         self.idx_to_name_map = []
         self.num_samples_per_cls = None
@@ -100,12 +97,16 @@ summary(model, input_size=(batch_size, 512)) """
 
 
 
-def training():
+def training(db_interface = None):
+    if db_interface is None:
+        db_interface = DBInterface(username='postgres', hostname='localhost',
+        database='face_recognition', port_id=5432)
+
     transform = transforms.ToTensor()
 
     #train_dataset = EmbeddingsDataset("face_embeddings_data/face_embeddings.pt",
     #"face_embeddings_data/face_embeddings_labels.pt")
-    train_dataset = EmbeddingsDataset()
+    train_dataset = EmbeddingsDataset(db_interface)
 
     train_dataloader = DataLoader(train_dataset, 16, shuffle=True)
 
@@ -115,7 +116,7 @@ def training():
 
     optimizer = torch.optim.AdamW(model.parameters())
 
-    n_epochs = 50
+    n_epochs = 30
 
     for epoch in range(n_epochs):
         for emb, label in train_dataloader:

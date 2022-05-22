@@ -11,11 +11,8 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class DepthMapsDataset(Dataset):
-    def __init__(self, depth_maps=None, embeddings_labels_dir=None, transforms=None, target_transforms=None):
+    def __init__(self, db_interface, depth_maps=None, embeddings_labels_dir=None, transforms=None, target_transforms=None):
         super(DepthMapsDataset, self).__init__()
-
-        db_interface = DBInterface(username='postgres', hostname='localhost',
-        database='face_recognition', port_id=5432)
 
         self.idx_to_name_map = []
         self.num_samples_per_cls = None
@@ -129,7 +126,11 @@ summary(model, input_size=(batch_size, 1, 320, 280)) """
 
 
 
-def training():
+def training(db_interface = None):
+    if db_interface is None:
+        db_interface = DBInterface(username='postgres', hostname='localhost',
+        database='face_recognition', port_id=5432)
+
     def rescale(x):
         return x / 65_535.0
 
@@ -143,7 +144,7 @@ def training():
 
     #train_dataset = DepthMapsDataset("face_embeddings_data/face_depth_maps.pt",
     #"face_embeddings_data/face_embeddings_labels.pt", transforms=transform)
-    train_dataset = DepthMapsDataset(transforms=transform)
+    train_dataset = DepthMapsDataset(db_interface, transforms=transform)
 
     #print(train_dataset.depth_dims)
     #return
@@ -162,7 +163,7 @@ def training():
 
     optimizer = torch.optim.AdamW(model.parameters())
 
-    n_epochs = 100
+    n_epochs = 50
 
     for epoch in range(n_epochs):
         for dm, label in train_dataloader:

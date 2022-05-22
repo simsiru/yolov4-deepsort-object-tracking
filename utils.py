@@ -14,6 +14,7 @@ import pickle
 
 from opencv_object_detector import ObjectDetection
 from facenet_pytorch import MTCNN, InceptionResnetV1
+#import depth_map_classifier, embeddings_classifier
 
 
 class EasyocrNumberPlateRecognition():
@@ -619,7 +620,11 @@ def insert_delete_update_person_face_data_in_database(n_img_class = 10, save_fac
 
 
 
-def insert_delete_update_person_face_data_in_database_lan(n_img_class = 10, port = 9999, save_depth_map = True):
+def insert_delete_update_person_face_data_in_database_lan(n_img_class = 10, port = 9999, save_depth_map = True,
+    password='148635', username='postgres', hostname='localhost', database='face_recognition', port_id=5432):
+
+    import depth_map_classifier, embeddings_classifier
+
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     emb_model = InceptionResnetV1(pretrained='vggface2').eval().to(device)
     mtcnn = MTCNN(device=device)
@@ -636,9 +641,7 @@ def insert_delete_update_person_face_data_in_database_lan(n_img_class = 10, port
 
     dm_xmin, dm_ymin, dm_xmax, dm_ymax = 180, 80, 460, 400
 
-    db_interface = DBInterface(username='postgres', hostname='localhost',
-    database='face_recognition', port_id=5432)
-
+    db_interface = DBInterface(password, username, hostname, database, port_id)
 
 
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -652,6 +655,8 @@ def insert_delete_update_person_face_data_in_database_lan(n_img_class = 10, port
     payload_size = struct.calcsize("Q")
 
     client_command = ""
+
+    new_data_upload = False
 
     while True:
         client_socket, addr = server_socket.accept()
@@ -756,6 +761,8 @@ def insert_delete_update_person_face_data_in_database_lan(n_img_class = 10, port
                         db_interface.execute_sql_script(sql_script,
                         (person_name, db_interface.numpy_array_to_bytes(face_embeddings),
                         db_interface.numpy_array_to_bytes(face_depth_maps)))
+
+                        new_data_upload = True
                     else:
                         sql_script = """
                         INSERT INTO face_embeddings_and_depth_maps(person_name, face_embedding)
@@ -763,6 +770,8 @@ def insert_delete_update_person_face_data_in_database_lan(n_img_class = 10, port
                         """
                         db_interface.execute_sql_script(sql_script,
                         (person_name, db_interface.numpy_array_to_bytes(face_embeddings)))
+
+                        new_data_upload = True
 
                     name_saving_mode = True
                     emb_saving_mode = False
@@ -779,14 +788,36 @@ def insert_delete_update_person_face_data_in_database_lan(n_img_class = 10, port
                 db_interface.execute_sql_script(sql_script, (delete_person_name,))
                 print(f"{delete_person_name} data deleted")
 
+                new_data_upload = True
+
             a = pickle.dumps(rgb_with_bboxes)
             message = struct.pack("Q",len(a))+a
             client_socket.sendall(message)
 
         print(f'CLIENT FROM: {addr} DISCONNECTED')
 
+        name_saving_mode = True
+        emb_saving_mode = False
+
         sql_script = """
         SELECT *
         FROM face_embeddings_and_depth_maps
         """
         print(db_interface.execute_sql_script(sql_script, return_result = True))
+
+        if new_data_upload:
+            print(f'-----------------RETRAINING THE EMBEDDINGS CLASSIFIER-----------------')
+            embeddings_classifier.training(db_interface)
+
+            sql_script = """
+            SELECT person_name
+            FROM face_embeddings_and_depth_maps
+            WHERE face_depth_map IS NULL
+            """
+            n_null = len(db_interface.execute_sql_script(sql_script, return_result = True))
+
+            if n_null == 0:
+                print(f'-----------------RETRAINING THE DEPTH MAP CLASSIFIER-----------------')
+                depth_map_classifier.training(db_interface)
+
+            new_data_upload = False

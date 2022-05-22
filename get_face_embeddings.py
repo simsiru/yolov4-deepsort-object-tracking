@@ -25,8 +25,18 @@ if __name__ == "__main__":
     parser.add_argument('-p', '--port', type=int, default=9999,
     help='Choose a port for a server to listen at, if not provided port 9999 will be used')
 
-    args = parser.parse_args()
+    parser.add_argument('--db_password', type=str, default='docker',
+    help='Postgresql database password')
+    parser.add_argument('--db_username', type=str, default='postgres',
+    help='Postgresql database username')
+    parser.add_argument('--db_hostname', type=str, required=True,
+    help='Postgresql database hostname')
+    parser.add_argument('--db_database', type=str, default='postgres',
+    help='Postgresql database name')
+    parser.add_argument('--db_port', type=int, default=5432,
+    help='Postgresql database port')
 
+    args = parser.parse_args()
 
     #get_and_save_person_face_embeddings("face_embeddings_data", n_img_class = 10,
     # save_face_depth_maps = True, save_face_img = True, face_img_path = "face_img_data")
@@ -42,7 +52,7 @@ if __name__ == "__main__":
         insert_delete_update_person_face_data_in_database(args.n_img,
         args.save_img, args.save_path)
     elif args.script == '1':
-        insert_delete_update_person_face_data_in_database_lan(args.n_img,
-        args.port, args.save_dm)
+        insert_delete_update_person_face_data_in_database_lan(args.n_img, args.port, args.save_dm,
+        args.db_password, args.db_username, args.db_hostname, args.db_database, args.db_port)
     elif args.script == '2':
         pass

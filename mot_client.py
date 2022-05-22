@@ -100,7 +100,7 @@ send_depth_map = False, video_file_path = None, data_collect_mode = False):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Start webcam or depth sensor stream to YOLOv4 MOT over LAN')
-    parser.add_argument('--ip', type=str, required=True,
+    parser.add_argument('--ip', type=str, default='localhost',
     help='Local IP of MOT docker container')
     parser.add_argument('-p', '--port', type=int, default=9999,
     help='Port for MOT docker container')
